@@ -33,6 +33,12 @@ class Order(HashModel):
     class Meta:
         database = redis
 
+
+@app.get('/orders/{pk}')
+def get(pk: str):
+    return Order.get(pk)
+
+
 @app.post('/orders')
 async def create(request: Request, background_tasks: BackgroundTasks):   # id, quantity
     body = await request.json()
@@ -50,12 +56,14 @@ async def create(request: Request, background_tasks: BackgroundTasks):   # id, q
     )
     order.save()
 
-    order_completed(order)
+    background_tasks.add_task(order_completed, order)
 
     return order
 
 
 def order_completed(order: Order):
+    time.sleep(5)
     order.status = 'completed'
     order.save()
+    redis.xadd('order_completed', order.dict(), '*')
 
